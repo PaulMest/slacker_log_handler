@@ -34,8 +34,8 @@ class NoStacktraceFormatter(Formatter):
 
 
 class SlackerLogHandler(Handler):
-    def __init__(self, api_key, channel, stack_trace=True, username='Python logger', icon_url=None, icon_emoji=None,
-                 fail_silent=False):
+    def __init__(self, api_key, channel, stack_trace=True, username=None, icon_url=None, icon_emoji=None,
+                 fail_silent=False, link_names=True):
         Handler.__init__(self)
         self.formatter = NoStacktraceFormatter()
 
@@ -45,10 +45,13 @@ class SlackerLogHandler(Handler):
         self.slacker = slacker.Slacker(api_key)
         self.username = username
         self.icon_url = icon_url
-        self.icon_emoji = icon_emoji if (icon_emoji or icon_url) else DEFAULT_EMOJI
+        self.icon_emoji = icon_emoji
         self.channel = channel
-        if not self.channel.startswith('#'):
-            self.channel = '#' + self.channel
+        self.link_names = link_names
+
+        if not (self.channel.startswith('#') or self.channel.startswith('@')):
+            raise ValueError('Invalid channel "{}". '
+                             'It must start with "#" for a channel or "@" for a private message.'.format(self.channel))
 
     def build_msg(self, record):
         return six.text_type(self.format(record))
@@ -81,6 +84,7 @@ class SlackerLogHandler(Handler):
                 icon_url=self.icon_url,
                 icon_emoji=self.icon_emoji,
                 attachments=attachments,
+                link_names=self.link_names,
             )
         except slacker.Error as e:
             if self.fail_silent:
